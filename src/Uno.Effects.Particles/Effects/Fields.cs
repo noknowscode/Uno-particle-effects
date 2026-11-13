@@ -288,19 +288,22 @@ public sealed partial class Flock : ParticleEffect
 		paint.Style = SKPaintStyle.Fill;
 		paint.Color = WithAlpha(Primary, 0.9f);
 
-		var path = RewoundPath();
+		// Every boid is one triangle of a single path: one detached path a
+		// frame instead of one per boid.
+		var builder = ResetPathBuilder();
 
 		foreach (var boid in _boids)
 		{
 			var heading = MathF.Atan2(boid.VelocityY, boid.VelocityX);
 
-			path.Reset();
-			path.MoveTo(boid.X + (MathF.Cos(heading) * 3f * size), boid.Y + (MathF.Sin(heading) * 3f * size));
-			path.LineTo(boid.X + (MathF.Cos(heading + 2.5f) * 2f * size), boid.Y + (MathF.Sin(heading + 2.5f) * 2f * size));
-			path.LineTo(boid.X + (MathF.Cos(heading - 2.5f) * 2f * size), boid.Y + (MathF.Sin(heading - 2.5f) * 2f * size));
-			path.Close();
-			canvas.DrawPath(path, paint);
+			builder.MoveTo(boid.X + (MathF.Cos(heading) * 3f * size), boid.Y + (MathF.Sin(heading) * 3f * size));
+			builder.LineTo(boid.X + (MathF.Cos(heading + 2.5f) * 2f * size), boid.Y + (MathF.Sin(heading + 2.5f) * 2f * size));
+			builder.LineTo(boid.X + (MathF.Cos(heading - 2.5f) * 2f * size), boid.Y + (MathF.Sin(heading - 2.5f) * 2f * size));
+			builder.Close();
 		}
+
+		using var path = builder.Detach();
+		canvas.DrawPath(path, paint);
 	}
 }
 

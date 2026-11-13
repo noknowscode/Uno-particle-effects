@@ -12,7 +12,7 @@ public abstract partial class ParticleEffect
 	protected const float Tau = MathF.PI * 2f;
 
 	private SKPaint? _paint;
-	private SKPath? _path;
+	private SKPathBuilder? _pathBuilder;
 	private float _spawnCarry;
 
 	/// <summary>
@@ -23,14 +23,16 @@ public abstract partial class ParticleEffect
 	protected SKPaint Paint => _paint ??= new SKPaint { IsAntialias = true };
 
 	/// <summary>
-	/// A path to build outlines into, rewound and reused every frame so drawing
-	/// one does not create a native object per frame.
+	/// A builder to trace outlines into, reset and reused every frame. SkiaSharp 4
+	/// paths are immutable: <see cref="SKPathBuilder.Detach"/> hands over the
+	/// traced path, which the caller disposes after drawing, and leaves the
+	/// builder empty for the next outline.
 	/// </summary>
-	protected SKPath RewoundPath()
+	protected SKPathBuilder ResetPathBuilder()
 	{
-		_path ??= new SKPath();
-		_path.Rewind();
-		return _path;
+		_pathBuilder ??= new SKPathBuilder();
+		_pathBuilder.Reset();
+		return _pathBuilder;
 	}
 
 	private protected void ResetSpawnCarry() => _spawnCarry = 0f;
@@ -39,8 +41,8 @@ public abstract partial class ParticleEffect
 	{
 		_paint?.Dispose();
 		_paint = null;
-		_path?.Dispose();
-		_path = null;
+		_pathBuilder?.Dispose();
+		_pathBuilder = null;
 	}
 
 	/// <summary>Fills a circle in the given colour at the given alpha.</summary>

@@ -1,5 +1,5 @@
 # HANDOFF — Uno.Effects (particles library + gallery)
-Updated: 2026-10-19
+Updated: 2026-11-13
 
 ## Where we are
 
@@ -14,23 +14,34 @@ a measured performance pass (worst frame 226 ms → 9.7 ms) and a fix for a
 device-tier density the docs claimed but the code never implemented. In October:
 a review pass (allocation, sizing, reversed gravity, frame-rate independence),
 security pins, CI, and the merge into the public `Uno-particle-effects` repo.
+In November: Uno.Sdk 7.0.5 (Uno Platform 7.0, SkiaSharp 4.151.1).
 
 Full detail is in `README.md`; the reasoning, measurements and findings that
 should go back to the recommendation are in `docs/session-log.md`.
 
 ## Last verified state
 
-Re-verified 2026-10-19 in a Linux cloud session, after this repo was merged into
-the public `mtmattei/Uno-particle-effects` (full history kept; the library sits
-at the root, launch media under `media/`).
+Re-verified 2026-11-13 in a Linux cloud session, after the move from Uno.Sdk
+6.7.22 to 7.0.5.
 
+- **Uno.Sdk 7.0.5:** the library and the test library list the `Skia` feature
+  (Uno 7 ignores `SkiaRenderer` in a library, UNOB0030, and the build failed
+  without SkiaSharp); the gallery head lists `Skia` too, which is what Uno 7
+  maps `SkiaRenderer` to. SkiaSharp 4 paths are immutable, so the three effects
+  that traced outlines (Flock, Sine path, Blob) build them in a reused
+  `SKPathBuilder` and draw the detached path; Flock traces the whole flock as
+  one path a frame (126 B/frame; one path per boid was 3.2 KB). The diagnostics
+  text uses the `DrawText` overload with an explicit alignment.
 - **Build:** pass. Whole solution, both TFMs, **zero warnings** with
-  `-warnaserror`. Two transitive security pins in `Directory.Packages.props`
-  (System.Security.Cryptography.Pkcs/.Xml 10.0.13).
-- **Tests:** `--render-tests` exits 0 on Skia Desktop (Linux, Xvfb). All 64
-  hashes are **unchanged** by the October fixes (shader source caching,
-  per-frame allocation cuts, wide-frame sizing, reversed gravity,
-  frame-rate-independent spawns and damping).
+  `-warnaserror`. The two security pins are gone: Uno.Sdk 7.0.5 no longer
+  brings `Microsoft.Windows.Compatibility`, so neither package is in the graph.
+- **Tests:** `--render-tests` exits 0 on Skia Desktop (Linux, Xvfb); all 64
+  effects are deterministic and draw. **The hashes moved** with SkiaSharp 4's
+  rasterizer: compared with 6.7.22 frame by frame, 49 of 192 frames are
+  identical, a median 0.6% of pixels differ, and at most 0.08% of a frame
+  (Halftone) differs by more than 32 levels in a channel: anti-aliasing at
+  shape edges, no visible change. Hashes from before November are no baseline
+  for cross-head comparison any more.
 - **CI:** `.github/workflows/ci.yml` builds both heads, runs the render tests
   under Xvfb, packs the NuGet. Validated step by step locally; its first run on
   GitHub is still to come.

@@ -751,7 +751,7 @@ public partial class ParticleView : SKCanvasElement
 		canvas.DrawRect(6, height - 22, _diagnosticsFont.MeasureText(text) + 12, 16, _diagnosticsPaint);
 
 		_diagnosticsPaint.Color = new SKColor(0xE9, 0xE5, 0xDD);
-		canvas.DrawText(text, 12, height - 10, _diagnosticsFont, _diagnosticsPaint);
+		canvas.DrawText(text, 12, height - 10, SKTextAlign.Left, _diagnosticsFont, _diagnosticsPaint);
 	}
 
 	#endregion

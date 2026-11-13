@@ -439,7 +439,7 @@ public sealed partial class Blob : ParticleEffect
 		var baseRadius = extent * 0.22f * ResolveSize();
 		var wobble = extent * 0.16f;
 
-		var path = RewoundPath();
+		var builder = ResetPathBuilder();
 
 		for (var i = 0; i <= Segments; i++)
 		{
@@ -456,15 +456,16 @@ public sealed partial class Blob : ParticleEffect
 
 			if (i == 0)
 			{
-				path.MoveTo(x, y);
+				builder.MoveTo(x, y);
 			}
 			else
 			{
-				path.LineTo(x, y);
+				builder.LineTo(x, y);
 			}
 		}
 
-		path.Close();
+		builder.Close();
+		using var path = builder.Detach();
 
 		var paint = Paint;
 		paint.Style = SKPaintStyle.Fill;

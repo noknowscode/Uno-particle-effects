@@ -274,15 +274,18 @@ public sealed partial class SinePath : ParticleEffect
 		paint.StrokeWidth = 1f;
 		paint.Color = WithAlpha(Primary, 0.12f);
 
-		var path = RewoundPath();
-		path.MoveTo(0, WaveAt(0, in frame));
+		var builder = ResetPathBuilder();
+		builder.MoveTo(0, WaveAt(0, in frame));
 
 		for (var x = 2f; x <= frame.Width; x += 2f)
 		{
-			path.LineTo(x, WaveAt(x / frame.Width, in frame));
+			builder.LineTo(x, WaveAt(x / frame.Width, in frame));
 		}
 
-		canvas.DrawPath(path, paint);
+		using (var path = builder.Detach())
+		{
+			canvas.DrawPath(path, paint);
+		}
 
 		foreach (var traveller in _travellers)
 		{

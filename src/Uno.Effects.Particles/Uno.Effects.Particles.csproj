@@ -18,7 +18,7 @@
     <IsPackable>true</IsPackable>
 
     <UnoFeatures>
-      SkiaRenderer;
+      Skia;
     </UnoFeatures>
   </PropertyGroup>
 
