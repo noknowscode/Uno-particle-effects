@@ -7,7 +7,7 @@ Captured from the library at `681211d`, gallery Release build, Skia Desktop on L
 | `art/` | 16 finished art pieces + `00-library-poster.jpg`. Captioned with the catalog number and description. |
 | `art/clean/` | Same 16 pieces without captions, for backgrounds and crops. |
 | `posters/` | 32 posters (1600×2000) in two series, each in its own palette. See [Posters](#posters). |
-| `posters/video/` | The animated versions: 1080×1350, 30 fps, H.264, 5.5–9.5 s each. |
+| `posters/video/` | The animated versions: 1080×1350, 30 fps, H.264, 10 s seamless loops. |
 | `screenshots/` | Real gallery UI at 1600×1000: board, filtered board, detail pages, light surface, SKSL tab, diagnostics. |
 | `recording/` | `gallery-walkthrough.mp4` — 45 s, 1600×1000, 30 fps, real time. |
 | `tweet.md` | Launch tweet drafts and which images to attach. |
@@ -79,7 +79,7 @@ were not recorded.
 ## Posters
 
 `posters/` holds 32 posters (4:5, 1600×2000) in two series, one effect and one palette each, with an
-animated version of every one in `posters/video/` (1080×1350, 30 fps, H.264).
+animated version of every one in `posters/video/` (1080×1350, 30 fps, H.264, 10 s loops).
 
 | Series | Shot list | Pieces |
 |---|---|---|
@@ -107,8 +107,11 @@ $G --art media/_source/posters-2.json raw-posters/
 python media/_source/posters.py stills media/_source/posters-2.json raw-posters/ media/posters/
 ```
 
-Animated versions: exposure pieces show the exposure forming while the bar fills, then hold; the
-others play 8 s live.
+Animated versions are 10 s loops. An exposure piece becomes a moving long exposure: the renderer's
+`persistence` fades each frame towards the surface over the exposure's length while the effect keeps
+running, so the trails match the still. The bar shows that window sliding along the loop. Single-frame
+pieces play live under a thin playhead. Each sequence runs 11 s and its last second is crossfaded into
+the first, so the end leads straight back into the start.
 
 ```
 python media/_source/posters_video_spec.py media/_source/posters-2.json posters-video.json

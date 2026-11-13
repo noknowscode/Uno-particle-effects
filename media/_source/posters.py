@@ -1,8 +1,8 @@
 """Per-effect posters, still and animated, one palette each.
 
 Usage:
-  python posters.py stills <shots.json> <raw dir> <out dir>               # 1600x2000 JPEGs
-  python posters.py videos <shots.json> <sequence dir> <out dir> [names]  # 1080x1350 MP4s
+  python posters.py stills <shots.json> <raw dir> <out dir> [names]       # 1600x2000 JPEGs
+  python posters.py videos <shots.json> <sequence dir> <out dir> [names]  # 1080x1350 10 s loops
 
 <shots.json> is a poster shot list (posters.json, posters-2.json). <raw dir> holds
 its renders from `--art <shots.json>`; <sequence dir> holds the frame folders from
@@ -14,7 +14,8 @@ colours, title font and offsets. The catalog number comes from Catalog.json.
 Two layouts:
   plate     (default) The art fills the sheet. The top right gives the exposure;
             the bar under the caption is the run, lit where the exposure was
-            taken, or, animated, as it forms.
+            taken. Animated, the exposure moves with the effect and the lit
+            window slides along the bar, wrapping with the loop.
   specimen  The art sits in a plate on a sheet beside the effect's own knobs,
             each default marked in its range ("knobs": names, or [name, mark]).
 
@@ -42,7 +43,7 @@ DEFAULT_TITLE = {'package': 'instrument-serif', 'weight': 400, 'style': 'normal'
 COMMON = {'Count': None, 'Speed': 0.25, 'Size': None, 'Opacity': 1.0, 'Seed': 0.0}
 
 STILL, VIDEO = (1600, 2000), (1080, 1350)
-FPS, HOLD = 30, 45
+FPS, LOOP, CROSSFADE = 30, 300, 30  # 10 s loops; the extra second fades into the start
 
 
 class Poster:
@@ -119,7 +120,9 @@ def plate_html(p, animated):
         start = (p.frames - p.exposure) / p.frames
     else:
         stat, label = '1/60 s', 'Per frame'
-        start = 0 if animated else (p.frames - 1) / p.frames
+        start = (p.frames - 1) / p.frames
+    if animated:
+        start = 0  # the loop draws its own window from the whole gradient
     f = p.font
     caption = ('400 26px/1.2 "Plex Mono"' if f['caption'] == 'mono'
                else f'{f["caption"]} {f["weight"]} 44px/1 "Title"')
@@ -222,8 +225,10 @@ def finished(im, p, seed):
     return grain(vignette(bloom(im), 0.45), 4.0, seed)
 
 
-def compose(p, art, layer, progress):
-    """art: finished effect output; progress: how much of the bar's fill is lit, 0..1."""
+def compose(p, art, layer, progress=1.0, window=None):
+    """art: finished effect output. The bar shows either `progress`, how much of the
+    fill is lit (0..1), or `window`, (head, length) as fractions of the track: the
+    exposure sliding along the loop, bright at its head, wrapping at the end."""
     overlay, fill, geo = layer
     s = geo['scale']
     poster = Image.new('RGBA', overlay.size, p.surface)
@@ -235,11 +240,24 @@ def compose(p, art, layer, progress):
     left, top = (im.width - bw) // 2, (im.height - bh) // 2
     poster.paste(im.crop((left, top, left + bw, top + bh)), box[:2])
     poster.alpha_composite(overlay)
-    if fill is not None and progress > 0:
-        f = geo['fill']
-        x0, x1 = round(f['x'] * s), round((f['x'] + f['w']) * s)
-        lit = fill.crop((0, 0, x0 + max(1, round((x1 - x0) * progress)), fill.height))
-        poster.alpha_composite(lit, (0, 0))
+    if fill is None:
+        return poster.convert('RGB')
+    f = geo['fill']
+    x0, x1 = round(f['x'] * s), round((f['x'] + f['w']) * s)
+    if window is None:
+        if progress > 0:
+            poster.alpha_composite(fill.crop((0, 0, x0 + max(1, round((x1 - x0) * progress)), fill.height)), (0, 0))
+        return poster.convert('RGB')
+    head, length = window
+    width = x1 - x0
+    seg = max(2, round(width * length))
+    y0, y1 = round(f['y'] * s), round((f['y'] + f['h']) * s)
+    strip = fill.crop((x0, y0, x1, y1)).resize((seg, y1 - y0), Image.LANCZOS)
+    end = round(width * head)
+    for offset in (end - seg, end - seg + width):  # the second copy is the wrapped part
+        lo, hi = max(0, offset), min(width, offset + seg)
+        if lo < hi:
+            poster.alpha_composite(strip.crop((lo - offset, 0, hi - offset, y1 - y0)), (x0 + lo, y0))
     return poster.convert('RGB')
 
 
@@ -255,13 +273,20 @@ def stills(posters, raw, out):
 
 
 def timeline(p, frames):
-    """Output frames as (sequence file, bar progress)."""
-    if p.exposure:
-        # The exposure forming: 4-8 s whatever its length, then a hold on the result.
-        n = round(min(8, max(4, len(frames) / 30)) * FPS)
-        picks = [min(len(frames) - 1, (k + 1) * len(frames) // n) for k in range(n)]
-        return [(frames[i], (i + 1) / len(frames)) for i in picks] + [(frames[-1], 1.0)] * HOLD
-    return [(f, (k + 1) / len(frames)) for k, f in enumerate(frames)]
+    """The loop: (frame, frame faded in over it, its weight, bar window) per output frame.
+
+    The sequence runs one crossfade longer than the loop. Its tail fades into the
+    first frames, so the last frame leads straight back into the first. The bar's
+    window is the exposure (or one frame) at 60 fps against the loop's 600 frames.
+    """
+    if len(frames) < LOOP + CROSSFADE:
+        sys.exit(f'{p.name}: {len(frames)} frames, need {LOOP + CROSSFADE}')
+    length = min(1.0, max(p.exposure, 6) / (LOOP * 60 // FPS))
+    plan = []
+    for k in range(LOOP):
+        tail = frames[LOOP + k] if k < CROSSFADE else None
+        plan.append((frames[k], tail, 1 - (k + 0.5) / CROSSFADE if tail else 0, ((k + 1) / LOOP, length)))
+    return plan
 
 
 _STATE = None
@@ -273,11 +298,13 @@ def _init(state):
 
 
 def _frame(args):
-    name, path, progress, seed = args
+    name, path, tail, weight, window, seed = args
     posters, layers = _STATE
     p = posters[name]
     art = Image.open(path).convert('RGB')
-    return compose(p, finished(art, p, seed), layers[name], progress).tobytes()
+    if tail:
+        art = Image.blend(art, Image.open(tail).convert('RGB'), weight)
+    return compose(p, finished(art, p, seed), layers[name], window=window).tobytes()
 
 
 def videos(posters, seq, out):
@@ -294,7 +321,8 @@ def videos(posters, seq, out):
                                        '-s', f'{VIDEO[0]}x{VIDEO[1]}', '-r', str(FPS), '-i', '-',
                                        '-c:v', 'libx264', '-preset', 'slow', '-crf', '21', '-pix_fmt', 'yuv420p',
                                        '-movflags', '+faststart', path], stdin=subprocess.PIPE)
-                for data in pool.imap(_frame, [(p.name, f, pr, k) for k, (f, pr) in enumerate(plan)], chunksize=4):
+                jobs = [(p.name, f, tail, w, win, k) for k, (f, tail, w, win) in enumerate(plan)]
+                for data in pool.imap(_frame, jobs, chunksize=4):
                     ff.stdin.write(data)
                 ff.stdin.close()
                 ff.wait()

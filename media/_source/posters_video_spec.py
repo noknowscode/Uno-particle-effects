@@ -1,26 +1,29 @@
-"""Derive the animated posters' shot list from posters.json.
+"""Derive the animated posters' shot list from a poster shot list.
 
 Usage: python posters_video_spec.py <posters.json> <out.json>
 
-Same effects, palettes and seeds, rendered at 1080x1350 (4:5). A shot with a
-long exposure writes every frame of its exposure window, so the video can show
-the exposure forming. A shot without one writes 8 s of live frames at 30 fps.
+Same effects, palettes and seeds, rendered at 1080x1350 (4:5) as 10 s loops.
+A shot with a long exposure becomes a moving one: the renderer's persistence
+fades each frame out over the exposure's length, so the trails look like the
+still's while the effect keeps going. Each shot warms up until that fade has
+settled, then records 11 s at 30 fps; posters.py crossfades the extra second
+into the start so the loop has no seam.
 """
 import json, sys
 
-VIDEO_W, LIVE_SECONDS = 1080, 8
+VIDEO_W, FPS = 1080, 30
+LOOP_SECONDS, CROSSFADE_SECONDS = 10, 1
 
 
 def video_shot(shot):
     v = dict(shot)
     v['scale'] = VIDEO_W / shot['w']
     exposure = shot.get('exposure', 0)
-    if exposure:
-        v['sequence'] = {'from': shot['frames'] - exposure + 1, 'every': 1}
-    else:
-        live = LIVE_SECONDS * 60
-        v['frames'] = max(shot['frames'], live + 60)
-        v['sequence'] = {'from': v['frames'] - live + 2, 'every': 2}
+    v['exposure'] = 0
+    start = max(shot['frames'], round(exposure * 1.5), 120)
+    recorded = (LOOP_SECONDS + CROSSFADE_SECONDS) * 60
+    v['frames'] = start + recorded - 1
+    v['sequence'] = {'from': start, 'every': 60 // FPS, 'persistence': exposure}
     return v
 
 
