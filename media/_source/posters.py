@@ -78,8 +78,8 @@ def package_dir(package):
     return os.path.join(FONTS, f'fontsource-{package}-{FONTSOURCE}')
 
 
-def ensure_fonts(posters):
-    packages = {'ibm-plex-mono', 'ibm-plex-sans-condensed'} | {p.font['package'] for p in posters}
+def ensure_fonts(posters, extra=()):
+    packages = {'ibm-plex-mono', 'ibm-plex-sans-condensed', *extra} | {p.font['package'] for p in posters}
     os.makedirs(FONTS, exist_ok=True)
     for package in sorted(packages):
         if os.path.isdir(package_dir(package)):

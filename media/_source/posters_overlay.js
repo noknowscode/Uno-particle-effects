@@ -2,7 +2,7 @@
 // exposure bar's fill on its own, and where the art and the fill sit.
 //
 // Usage: node posters_overlay.js <jobs.json>
-// jobs.json: [{ "html": "...", "out": "<prefix>", "scale": 1 }]
+// jobs.json: [{ "html": "...", "out": "<prefix>", "scale": 1, "width": 1600, "height": 2000 }]
 // Writes <prefix>.overlay.png, <prefix>.fill.png and <prefix>.json.
 const fs = require('fs');
 const { chromium } = require('playwright');
@@ -20,7 +20,7 @@ async function shoot(page, path) {
   const browser = await chromium.launch();
   for (const job of jobs) {
     console.log('overlay', job.out.split('/').pop(), 'x' + job.scale);
-    const page = await browser.newPage({ viewport: { width: 1600, height: 2000 }, deviceScaleFactor: job.scale });
+    const page = await browser.newPage({ viewport: { width: job.width || 1600, height: job.height || 2000 }, deviceScaleFactor: job.scale });
     await page.goto('file://' + job.html);
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate(() => window.fit && window.fit());

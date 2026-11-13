@@ -8,6 +8,7 @@ Captured from the library at `681211d`, gallery Release build, Skia Desktop on L
 | `art/clean/` | Same 16 pieces without captions, for backgrounds and crops. |
 | `posters/` | 32 posters (1600×2000) in two series, each in its own palette. See [Posters](#posters). |
 | `posters/video/` | The animated versions: 1080×1350, 30 fps, H.264, 10 s seamless loops. |
+| `mockups/` | The 16 series-1 effects as the hero of an app screen, 1080×2340, still and looping (`mockups/video/`). See [App mockups](#app-mockups). |
 | `screenshots/` | Real gallery UI at 1600×1000: board, filtered board, detail pages, light surface, SKSL tab, diagnostics. |
 | `recording/` | `gallery-walkthrough.mp4` — 45 s, 1600×1000, 30 fps, real time. |
 | `tweet.md` | Launch tweet drafts and which images to attach. |
@@ -120,6 +121,27 @@ the first, so the end leads straight back into the start.
 python media/_source/posters_video_spec.py media/_source/posters-2.json posters-video.json
 $G --art posters-video.json seq/
 python media/_source/posters.py videos media/_source/posters-2.json seq/ media/posters/video/
+```
+
+## App mockups
+
+![The 16 app mockups](mockups/00-overview.jpg)
+
+`mockups/` shows each series-1 effect where it would ship: as the hero of a phone screen (360×780 pt at
+3×, so 1080×2340), fading into the app's surface under real controls. Each screen pairs an app with the
+effect's mood: a meditation session (Flow field), a hiking route (Curl noise), a music player (Plasma), a
+voice assistant (Metaballs), a savings goal (Fireworks), a team network (Constellation), a focus timer
+(Orbits), a podcast recorder (Lissajous), stargazing (Galaxy), EV charging (Dipole), weather (Attractor,
+since Lorenz found chaos in a weather model), a file transfer (Vortex), a magazine (Halftone), plant care
+(Phyllotaxis), a New Year's Eve ticket (Sparkler) and a VPN (Arcs). Headings use the effect's poster
+face, text is Inter, colours are its palette.
+
+The hero is 1080×1350, the loop sequences' own size, so `mockups.py` reuses the posters' inputs and
+finishing as they are:
+
+```
+python media/_source/mockups.py stills raw-posters/ media/mockups/
+python media/_source/mockups.py videos seq/ media/mockups/video/
 ```
 
 ## Caveat on numbers
