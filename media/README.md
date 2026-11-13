@@ -7,6 +7,7 @@ Captured from the library at `681211d`, gallery Release build, Skia Desktop on L
 | `art/` | 16 finished art pieces + `00-library-poster.jpg`. Captioned with the catalog number and description. |
 | `art/clean/` | Same 16 pieces without captions, for backgrounds and crops. |
 | `posters/` | One 1600×2000 poster per art piece, each in its own palette. See [Posters](#posters). |
+| `posters/video/` | The animated versions: 1080×1350, 30 fps, H.264, 5.5–9.5 s each. |
 | `screenshots/` | Real gallery UI at 1600×1000: board, filtered board, detail pages, light surface, SKSL tab, diagnostics. |
 | `recording/` | `gallery-walkthrough.mp4` — 45 s, 1600×1000, 30 fps, real time. |
 | `tweet.md` | Launch tweet drafts and which images to attach. |
@@ -102,7 +103,7 @@ then hold; the others play 8 s live.
 ```
 python media/_source/posters_video_spec.py media/_source/posters.json posters-video.json
 $G --art posters-video.json seq/
-python media/_source/posters.py videos seq/ posters-video/
+python media/_source/posters.py videos seq/ media/posters/video/
 ```
 
 ## Caveat on numbers
