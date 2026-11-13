@@ -44,6 +44,22 @@ public static class ArtRenderer
 		var blend = shot.TryGetProperty("blend", out var b) && b.GetString() == "darken" ? SKBlendMode.Darken : SKBlendMode.Lighten;
 		var surfaceColor = SKColor.Parse(shot.TryGetProperty("surface", out var s) ? s.GetString()! : "#2A2A28");
 
+		// Optional frame sequence for the animated posters: every `every`th frame
+		// from `from` on, written as JPEGs to a folder named after the shot. Inside
+		// the exposure window a frame is the exposure so far. With `persistence`
+		// N, a frame is instead a moving long exposure: every frame fades towards
+		// the surface, to 12% over N frames, and the new frame is blended on top.
+		string? sequenceDirectory = null;
+		int sequenceFrom = 0, sequenceEvery = 1, persistence = 0;
+		if (shot.TryGetProperty("sequence", out var sequence))
+		{
+			sequenceDirectory = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path));
+			Directory.CreateDirectory(sequenceDirectory);
+			sequenceFrom = (int)Get(sequence, "from", 0f);
+			sequenceEvery = Math.Max(1, (int)Get(sequence, "every", 1f));
+			persistence = (int)Get(sequence, "persistence", 0f);
+		}
+
 		var layers = new List<ParticleEffect>();
 		foreach (var layer in shot.GetProperty("layers").EnumerateArray())
 		{
@@ -57,6 +73,15 @@ public static class ArtRenderer
 		using var surface = SKSurface.Create(info);
 		using var accumulator = exposure > 0 ? SKSurface.Create(info) : null;
 		accumulator?.Canvas.Clear(surfaceColor);
+
+		// Half floats, so a fade of a fraction of a level per frame still moves.
+		using var persistent = persistence > 0 ? SKSurface.Create(info.WithColorType(SKColorType.RgbaF16)) : null;
+		persistent?.Canvas.Clear(surfaceColor);
+		using var fadePaint = new SKPaint
+		{
+			ColorF = new SKColorF(surfaceColor.Red / 255f, surfaceColor.Green / 255f, surfaceColor.Blue / 255f,
+				persistence > 0 ? 1f - MathF.Pow(0.12f, 1f / persistence) : 0f),
+		};
 
 		var canvas = surface.Canvas;
 		canvas.Clear(surfaceColor);
@@ -89,6 +114,23 @@ public static class ArtRenderer
 				using var snapshot = surface.Snapshot();
 				using var paint = new SKPaint { BlendMode = blend };
 				accumulator.Canvas.DrawImage(snapshot, 0, 0, paint);
+			}
+
+			if (persistent is not null)
+			{
+				using var snapshot = surface.Snapshot();
+				using var paint = new SKPaint { BlendMode = blend };
+				persistent.Canvas.DrawRect(0, 0, pw, ph, fadePaint);
+				persistent.Canvas.DrawImage(snapshot, 0, 0, paint);
+			}
+
+			if (sequenceDirectory is not null && frame >= sequenceFrom && (frame - sequenceFrom) % sequenceEvery == 0)
+			{
+				var exposing = accumulator is not null && frame > frames - exposure;
+				using var still = (persistent ?? (exposing ? accumulator! : surface)).Snapshot();
+				using var jpeg = still.Encode(SKEncodedImageFormat.Jpeg, 95);
+				using var output = File.Create(Path.Combine(sequenceDirectory, $"{frame:D4}.jpg"));
+				jpeg.SaveTo(output);
 			}
 		}
 

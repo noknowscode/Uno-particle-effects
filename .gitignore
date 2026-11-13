@@ -493,3 +493,6 @@ solution-config.props
 # Intermediate output from the media capture pipeline (see media/README.md)
 /raw/
 /out/
+
+# Fonts fetched by media/_source/posters.py
+media/_source/.fonts/
