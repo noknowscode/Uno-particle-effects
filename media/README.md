@@ -92,8 +92,15 @@ Halftone, Rubik Glitch for Arcs, Shrikhand for Plasma, Silkscreen for Cascade, M
 
 Two layouts:
 
-- **Plate** (all 32): the art fills the sheet. The top right gives the exposure, and the bar
-  under the caption is the run, lit where the exposure was taken. Single-frame pieces read `1/60 s`.
+- **Plate** (all 32): the art fills the sheet. Every element has one job:
+  - top left, identity: library and catalog number;
+  - top right, the exposure, with numerals 60 px tall in every face; single-frame pieces read `1/60 s`;
+  - left, the title column in the effect's own face;
+  - bottom, the caption (21 px x-height in every face, 84% ink), then the run as a bar with its axis
+    in seconds. The lit part is the exposure; a single frame is a square at the end.
+
+  The accent means time: the exposure label and the lit bar share it, and so does the title's full stop.
+  Margins are 80 px on all four sides, measured to cap tops and baselines with `text-box-trim`.
 - **Specimen** (unused now; Lissajous, Halftone and Metaballs had it before they moved to dark plates):
   the art sits in a plate on a sheet beside the effect's own knobs, each default marked in its range.
 
@@ -142,7 +149,16 @@ finishing as they are:
 ```
 python media/_source/mockups.py stills raw-posters/ media/mockups/
 python media/_source/mockups.py videos seq/ media/mockups/video/
+python media/_source/mockups.py overview media/mockups/
 ```
+
+`overview` tiles the finished screens into `00-overview.jpg` and `video/00-overview.mp4`
+(3840×2056, all 16 loops running together; they share the 300-frame loop, so the overview loops too).
+
+The screens share one system: content anchored 42 pt above the bottom on 24 pt edges, a 4 pt grid
+(8 / 12 / 16 / 24 / 32 between things), headings in three steps (88 for hero numbers, 48 for titles,
+32 for sentences), Inter at 16 / 15 / 13 / 12, ink at 100 / 84 / 60 %, icons at 20 / 24 / 28 / 32.
+Actions are outlined in the accent; status tags are quiet filled labels; at most one filled primary action per screen.
 
 ## Caveat on numbers
 
