@@ -7,13 +7,13 @@ Read `HANDOFF.md` first at the start of a session.
 
 ### `/learn-taste`
 
-Source: <https://aiforui.dev/skills/learn-taste> (from `emilkowalski/skills`)
+Source: <https://aiforui.dev/skills/learn-taste>
 
-Install:
-
-```bash
-npx skills@latest add emilkowalski/skills --skill learn-taste
-```
+Vendored in `.claude/skills/learn-taste/` (`SKILL.md` + MIT `LICENSE`), copied
+unmodified from `emilkowalski/skills` at commit `f7ce8c0` (2026-11-12). It loads
+automatically in every session on this repo. It runs only when invoked
+explicitly (`disable-model-invocation: true`). To update it, copy
+`skills/learn-taste/SKILL.md` from upstream over the vendored file.
 
 What it does: it collects every design correction made during a session and
 turns each one into a strict rule with its reason. It also catches corrections
