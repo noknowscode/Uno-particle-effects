@@ -6,7 +6,7 @@ Captured from the library at `681211d`, gallery Release build, Skia Desktop on L
 |---|---|
 | `art/` | 16 finished art pieces + `00-library-poster.jpg`. Captioned with the catalog number and description. |
 | `art/clean/` | Same 16 pieces without captions, for backgrounds and crops. |
-| `posters/` | One 1600×2000 poster per art piece, each in its own palette. See [Posters](#posters). |
+| `posters/` | 32 posters (1600×2000) in two series, each in its own palette. See [Posters](#posters). |
 | `posters/video/` | The animated versions: 1080×1350, 30 fps, H.264, 5.5–9.5 s each. |
 | `screenshots/` | Real gallery UI at 1600×1000: board, filtered board, detail pages, light surface, SKSL tab, diagnostics. |
 | `recording/` | `gallery-walkthrough.mp4` — 45 s, 1600×1000, 30 fps, real time. |
@@ -78,32 +78,42 @@ were not recorded.
 
 ## Posters
 
-`posters/` holds one 4:5 poster per art piece, re-rendered in its own palette (`_source/posters.json`).
-There are two layouts, split by surface:
+`posters/` holds 32 posters (4:5, 1600×2000) in two series, one effect and one palette each, with an
+animated version of every one in `posters/video/` (1080×1350, 30 fps, H.264).
 
-- **Plate** (the 13 dark pieces): the art fills the sheet. The top right gives the exposure, and the
-  bar under the caption is the run, lit where the exposure was taken. Single-frame pieces read `1/60 s`.
-- **Specimen** (Lissajous, Halftone, Metaballs): the art sits in a plate on a sheet in the accent colour,
-  next to the effect's own knobs with each default marked in its range (hollow means automatic).
+| Series | Shot list | Pieces |
+|---|---|---|
+| 1 | `_source/posters.json` | The 16 art pieces. Title face Instrument Serif throughout. |
+| 2 | `_source/posters-2.json` | 16 more effects, all dark. Each title face is chosen to match how its effect moves (Silkscreen for Cascade, Monoton for Trail, Anton for Tornado). |
 
-The type layer is HTML rendered by Playwright (`posters_overlay.js`); the art is the effect's output with
-the same finishing as `art/`. Fonts are Instrument Serif and IBM Plex (SIL OFL); `posters.py` fetches them
-from npm into `_source/.fonts/` (gitignored) on first run. Needs Node with Playwright and a Chromium.
+Two layouts:
 
-With the capture patch applied and the gallery built as above:
+- **Plate** (every dark piece): the art fills the sheet. The top right gives the exposure, and the bar
+  under the caption is the run, lit where the exposure was taken. Single-frame pieces read `1/60 s`.
+- **Specimen** (series 1 only: Lissajous, Halftone, Metaballs): the art sits in a plate on a sheet in
+  the accent colour, next to the effect's own knobs with each default marked in its range.
+
+Each shot's `poster` block holds the title, caption, colours, title font (`package`, `weight`, `style`,
+`tracking`, optional `caption: "mono"`) and placement (`shift`, `zoom`). The catalog number comes from
+`Catalog.json`. The type layer is HTML rendered by Playwright (`posters_overlay.js`); the art is the
+effect's output with the same finishing as `art/`. Fonts are SIL OFL faces from Fontsource, fetched by
+`posters.py` from npm into `_source/.fonts/` (gitignored) on first use; small type is IBM Plex Mono.
+Needs Node with Playwright and a Chromium.
+
+With the capture patch applied and the gallery built as above, for either shot list:
 
 ```
-$G --art media/_source/posters.json raw-posters/
-python media/_source/posters.py stills raw-posters/ media/posters/
+$G --art media/_source/posters-2.json raw-posters/
+python media/_source/posters.py stills media/_source/posters-2.json raw-posters/ media/posters/
 ```
 
-Animated versions (1080×1350, 30 fps): exposure pieces show the exposure forming while the bar fills,
-then hold; the others play 8 s live.
+Animated versions: exposure pieces show the exposure forming while the bar fills, then hold; the
+others play 8 s live.
 
 ```
-python media/_source/posters_video_spec.py media/_source/posters.json posters-video.json
+python media/_source/posters_video_spec.py media/_source/posters-2.json posters-video.json
 $G --art posters-video.json seq/
-python media/_source/posters.py videos seq/ media/posters/video/
+python media/_source/posters.py videos media/_source/posters-2.json seq/ media/posters/video/
 ```
 
 ## Caveat on numbers
