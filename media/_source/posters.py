@@ -58,7 +58,8 @@ class Poster:
         font = p.get('font', {})
         self.font = {**DEFAULT_TITLE, 'caption': font.get('style', 'normal'), 'stat': 84, **font} if font else dict(DEFAULT_TITLE)
         self.shift = p.get('shift', [0, 0])
-        self.zoom = p.get('zoom', 1)  # <1 shrinks art that runs to the edges inside the plain surface
+        self.zoom = p.get('zoom', 1)
+        self.scrim = p.get('scrim', [82, 26])  # left fade behind the title: % of surface, % of width  # <1 shrinks art that runs to the edges inside the plain surface
         self.knobs = p.get('knobs', [])
         self.frames, self.exposure = shot['frames'], shot.get('exposure', 0)
 
@@ -131,7 +132,7 @@ def plate_html(p, animated):
 :root {{ --ink: {p.ink}; --accent: {p.accent}; --surface: {p.surface}; }}
 #art {{ position: absolute; left: {p.shift[0] + 800 * (1 - p.zoom):.0f}px; top: {p.shift[1] + 1000 * (1 - p.zoom):.0f}px; width: {1600 * p.zoom:.0f}px; height: {2000 * p.zoom:.0f}px; }}
 .scrim {{ position: absolute; inset: 0; background:
-  linear-gradient(90deg, color-mix(in srgb, var(--surface) 82%, transparent) 0, transparent 26%),
+  linear-gradient(90deg, color-mix(in srgb, var(--surface) {p.scrim[0]}%, transparent) 0, color-mix(in srgb, var(--surface) {p.scrim[0] // 2}%, transparent) {p.scrim[1] * 0.6:.0f}%, transparent {p.scrim[1]}%),
   linear-gradient(0deg, color-mix(in srgb, var(--surface) 92%, transparent) 0, transparent 24%),
   linear-gradient(180deg, color-mix(in srgb, var(--surface) 60%, transparent) 0, transparent 12%); }}
 .brand {{ position: absolute; left: 80px; top: 72px; font: 400 18px "Plex Mono"; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); opacity: .55; }}

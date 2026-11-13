@@ -83,18 +83,21 @@ animated version of every one in `posters/video/` (1080×1350, 30 fps, H.264, 10
 
 | Series | Shot list | Pieces |
 |---|---|---|
-| 1 | `_source/posters.json` | The 16 art pieces. Title face Instrument Serif throughout. |
-| 2 | `_source/posters-2.json` | 16 more effects, all dark. Each title face is chosen to match how its effect moves (Silkscreen for Cascade, Monoton for Trail, Anton for Tornado). |
+| 1 | `_source/posters.json` | The 16 art pieces. |
+| 2 | `_source/posters-2.json` | 16 more effects. |
+
+Every poster is dark, and each title face is chosen to match how its effect moves: DotGothic16 for
+Halftone, Rubik Glitch for Arcs, Shrikhand for Plasma, Silkscreen for Cascade, Monoton for Trail.
 
 Two layouts:
 
-- **Plate** (every dark piece): the art fills the sheet. The top right gives the exposure, and the bar
+- **Plate** (all 32): the art fills the sheet. The top right gives the exposure, and the bar
   under the caption is the run, lit where the exposure was taken. Single-frame pieces read `1/60 s`.
-- **Specimen** (series 1 only: Lissajous, Halftone, Metaballs): the art sits in a plate on a sheet in
-  the accent colour, next to the effect's own knobs with each default marked in its range.
+- **Specimen** (unused now; Lissajous, Halftone and Metaballs had it before they moved to dark plates):
+  the art sits in a plate on a sheet beside the effect's own knobs, each default marked in its range.
 
 Each shot's `poster` block holds the title, caption, colours, title font (`package`, `weight`, `style`,
-`tracking`, optional `caption: "mono"`) and placement (`shift`, `zoom`). The catalog number comes from
+`tracking`, optional `caption: "mono"`) and placement (`shift`, `zoom`, `scrim` behind the title). The catalog number comes from
 `Catalog.json`. The type layer is HTML rendered by Playwright (`posters_overlay.js`); the art is the
 effect's output with the same finishing as `art/`. Fonts are SIL OFL faces from Fontsource, fetched by
 `posters.py` from npm into `_source/.fonts/` (gitignored) on first use; small type is IBM Plex Mono.
