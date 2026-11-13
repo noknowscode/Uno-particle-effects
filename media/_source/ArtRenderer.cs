@@ -44,6 +44,19 @@ public static class ArtRenderer
 		var blend = shot.TryGetProperty("blend", out var b) && b.GetString() == "darken" ? SKBlendMode.Darken : SKBlendMode.Lighten;
 		var surfaceColor = SKColor.Parse(shot.TryGetProperty("surface", out var s) ? s.GetString()! : "#2A2A28");
 
+		// Optional frame sequence for the animated posters: every `every`th frame
+		// from `from` on, written as JPEGs to a folder named after the shot. Inside
+		// the exposure window a frame is the exposure so far.
+		string? sequenceDirectory = null;
+		int sequenceFrom = 0, sequenceEvery = 1;
+		if (shot.TryGetProperty("sequence", out var sequence))
+		{
+			sequenceDirectory = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path));
+			Directory.CreateDirectory(sequenceDirectory);
+			sequenceFrom = (int)Get(sequence, "from", 0f);
+			sequenceEvery = Math.Max(1, (int)Get(sequence, "every", 1f));
+		}
+
 		var layers = new List<ParticleEffect>();
 		foreach (var layer in shot.GetProperty("layers").EnumerateArray())
 		{
@@ -89,6 +102,15 @@ public static class ArtRenderer
 				using var snapshot = surface.Snapshot();
 				using var paint = new SKPaint { BlendMode = blend };
 				accumulator.Canvas.DrawImage(snapshot, 0, 0, paint);
+			}
+
+			if (sequenceDirectory is not null && frame >= sequenceFrom && (frame - sequenceFrom) % sequenceEvery == 0)
+			{
+				var exposing = accumulator is not null && frame > frames - exposure;
+				using var still = (exposing ? accumulator! : surface).Snapshot();
+				using var jpeg = still.Encode(SKEncodedImageFormat.Jpeg, 92);
+				using var output = File.Create(Path.Combine(sequenceDirectory, $"{frame:D4}.jpg"));
+				jpeg.SaveTo(output);
 			}
 		}
 
