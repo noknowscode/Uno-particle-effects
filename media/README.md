@@ -8,6 +8,7 @@ Captured from the library at `681211d`, gallery Release build, Skia Desktop on L
 | `art/clean/` | Same 16 pieces without captions, for backgrounds and crops. |
 | `posters/` | 32 posters (1600×2000) in two series, each in its own palette. See [Posters](#posters). |
 | `posters/video/` | The animated versions: 1080×1350, 30 fps, H.264, 10 s seamless loops. |
+| `mockups/` | The 16 series-1 effects as the hero of an app screen, 1080×2340, still and looping (`mockups/video/`). See [App mockups](#app-mockups). |
 | `screenshots/` | Real gallery UI at 1600×1000: board, filtered board, detail pages, light surface, SKSL tab, diagnostics. |
 | `recording/` | `gallery-walkthrough.mp4` — 45 s, 1600×1000, 30 fps, real time. |
 | `tweet.md` | Launch tweet drafts and which images to attach. |
@@ -83,18 +84,28 @@ animated version of every one in `posters/video/` (1080×1350, 30 fps, H.264, 10
 
 | Series | Shot list | Pieces |
 |---|---|---|
-| 1 | `_source/posters.json` | The 16 art pieces. Title face Instrument Serif throughout. |
-| 2 | `_source/posters-2.json` | 16 more effects, all dark. Each title face is chosen to match how its effect moves (Silkscreen for Cascade, Monoton for Trail, Anton for Tornado). |
+| 1 | `_source/posters.json` | The 16 art pieces. |
+| 2 | `_source/posters-2.json` | 16 more effects. |
+
+Every poster is dark, and each title face is chosen to match how its effect moves: DotGothic16 for
+Halftone, Rubik Glitch for Arcs, Shrikhand for Plasma, Silkscreen for Cascade, Monoton for Trail.
 
 Two layouts:
 
-- **Plate** (every dark piece): the art fills the sheet. The top right gives the exposure, and the bar
-  under the caption is the run, lit where the exposure was taken. Single-frame pieces read `1/60 s`.
-- **Specimen** (series 1 only: Lissajous, Halftone, Metaballs): the art sits in a plate on a sheet in
-  the accent colour, next to the effect's own knobs with each default marked in its range.
+- **Plate** (all 32): the art fills the sheet. Every element has one job:
+  - top left, identity: library and catalog number;
+  - top right, the exposure, with numerals 60 px tall in every face; single-frame pieces read `1/60 s`;
+  - left, the title column in the effect's own face;
+  - bottom, the caption (21 px x-height in every face, 84% ink), then the run as a bar with its axis
+    in seconds. The lit part is the exposure; a single frame is a square at the end.
+
+  The accent means time: the exposure label and the lit bar share it, and so does the title's full stop.
+  Margins are 80 px on all four sides, measured to cap tops and baselines with `text-box-trim`.
+- **Specimen** (unused now; Lissajous, Halftone and Metaballs had it before they moved to dark plates):
+  the art sits in a plate on a sheet beside the effect's own knobs, each default marked in its range.
 
 Each shot's `poster` block holds the title, caption, colours, title font (`package`, `weight`, `style`,
-`tracking`, optional `caption: "mono"`) and placement (`shift`, `zoom`). The catalog number comes from
+`tracking`, optional `caption: "mono"`) and placement (`shift`, `zoom`, `scrim` behind the title). The catalog number comes from
 `Catalog.json`. The type layer is HTML rendered by Playwright (`posters_overlay.js`); the art is the
 effect's output with the same finishing as `art/`. Fonts are SIL OFL faces from Fontsource, fetched by
 `posters.py` from npm into `_source/.fonts/` (gitignored) on first use; small type is IBM Plex Mono.
@@ -118,6 +129,36 @@ python media/_source/posters_video_spec.py media/_source/posters-2.json posters-
 $G --art posters-video.json seq/
 python media/_source/posters.py videos media/_source/posters-2.json seq/ media/posters/video/
 ```
+
+## App mockups
+
+![The 16 app mockups](mockups/00-overview.jpg)
+
+`mockups/` shows each series-1 effect where it would ship: as the hero of a phone screen (360×780 pt at
+3×, so 1080×2340), fading into the app's surface under real controls. Each screen pairs an app with the
+effect's mood: a meditation session (Flow field), a hiking route (Curl noise), a music player (Plasma), a
+voice assistant (Metaballs), a savings goal (Fireworks), a team network (Constellation), a focus timer
+(Orbits), a podcast recorder (Lissajous), stargazing (Galaxy), EV charging (Dipole), weather (Attractor,
+since Lorenz found chaos in a weather model), a file transfer (Vortex), a magazine (Halftone), plant care
+(Phyllotaxis), a New Year's Eve ticket (Sparkler) and a VPN (Arcs). Headings use the effect's poster
+face, text is Inter, colours are its palette.
+
+The hero is 1080×1350, the loop sequences' own size, so `mockups.py` reuses the posters' inputs and
+finishing as they are:
+
+```
+python media/_source/mockups.py stills raw-posters/ media/mockups/
+python media/_source/mockups.py videos seq/ media/mockups/video/
+python media/_source/mockups.py overview media/mockups/
+```
+
+`overview` tiles the finished screens into `00-overview.jpg` and `video/00-overview.mp4`
+(3840×2056, all 16 loops running together; they share the 300-frame loop, so the overview loops too).
+
+The screens share one system: content anchored 42 pt above the bottom on 24 pt edges, a 4 pt grid
+(8 / 12 / 16 / 24 / 32 between things), headings in three steps (88 for hero numbers, 48 for titles,
+32 for sentences), Inter at 16 / 15 / 13 / 12, ink at 100 / 84 / 60 %, icons at 20 / 24 / 28 / 32.
+Actions are outlined in the accent; status tags are quiet filled labels; at most one filled primary action per screen.
 
 ## Caveat on numbers
 

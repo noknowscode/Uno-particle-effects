@@ -58,7 +58,8 @@ class Poster:
         font = p.get('font', {})
         self.font = {**DEFAULT_TITLE, 'caption': font.get('style', 'normal'), 'stat': 84, **font} if font else dict(DEFAULT_TITLE)
         self.shift = p.get('shift', [0, 0])
-        self.zoom = p.get('zoom', 1)  # <1 shrinks art that runs to the edges inside the plain surface
+        self.zoom = p.get('zoom', 1)
+        self.scrim = p.get('scrim', [82, 26])  # left fade behind the title: % of surface, % of width  # <1 shrinks art that runs to the edges inside the plain surface
         self.knobs = p.get('knobs', [])
         self.frames, self.exposure = shot['frames'], shot.get('exposure', 0)
 
@@ -77,8 +78,8 @@ def package_dir(package):
     return os.path.join(FONTS, f'fontsource-{package}-{FONTSOURCE}')
 
 
-def ensure_fonts(posters):
-    packages = {'ibm-plex-mono', 'ibm-plex-sans-condensed'} | {p.font['package'] for p in posters}
+def ensure_fonts(posters, extra=()):
+    packages = {'ibm-plex-mono', 'ibm-plex-sans-condensed', *extra} | {p.font['package'] for p in posters}
     os.makedirs(FONTS, exist_ok=True)
     for package in sorted(packages):
         if os.path.isdir(package_dir(package)):
@@ -115,52 +116,83 @@ BASE = '* { margin: 0; padding: 0; box-sizing: border-box; } html, body { width:
 
 
 def plate_html(p, animated):
+    """The plate. Every edge is measured to cap tops and baselines (text-box-trim),
+    80 px in from the sheet on all four sides.
+
+    Top: identity on the left, the exposure on the right; both cap tops on y=80.
+    Left: the title column, its cap edge on x=80, starting 72 px above the caption.
+    Bottom: caption, then the run as a bar with its axis. The accent means time:
+    the exposure label and the lit part of the bar share it.
+    """
     if p.exposure:
         stat, label = f'{p.exposure / 60:.2f} s', 'Exposure'
         start = (p.frames - p.exposure) / p.frames
     else:
         stat, label = '1/60 s', 'Per frame'
         start = (p.frames - 1) / p.frames
+    run = LOOP / FPS if animated else p.frames / 60
     if animated:
         start = 0  # the loop draws its own window from the whole gradient
     f = p.font
-    caption = ('400 26px/1.2 "Plex Mono"' if f['caption'] == 'mono'
-               else f'{f["caption"]} {f["weight"]} 44px/1 "Title"')
+    caption = '"Plex Mono"' if f['caption'] == 'mono' else '"Title"'
+    caption_style = 'normal' if f['caption'] == 'mono' else f['caption']
+    caption_weight = 400 if f['caption'] == 'mono' else f['weight']
     return f'''<!doctype html><html><head><meta charset="utf-8"><style>{font_css(p)}
 {BASE}
-:root {{ --ink: {p.ink}; --accent: {p.accent}; --surface: {p.surface}; }}
+:root {{ --ink: {p.ink}; --accent: {p.accent}; --surface: {p.surface}; --m: 80px; }}
 #art {{ position: absolute; left: {p.shift[0] + 800 * (1 - p.zoom):.0f}px; top: {p.shift[1] + 1000 * (1 - p.zoom):.0f}px; width: {1600 * p.zoom:.0f}px; height: {2000 * p.zoom:.0f}px; }}
 .scrim {{ position: absolute; inset: 0; background:
-  linear-gradient(90deg, color-mix(in srgb, var(--surface) 82%, transparent) 0, transparent 26%),
+  linear-gradient(90deg, color-mix(in srgb, var(--surface) {p.scrim[0]}%, transparent) 0, color-mix(in srgb, var(--surface) {p.scrim[0] // 2}%, transparent) {p.scrim[1] * 0.6:.0f}%, transparent {p.scrim[1]}%),
   linear-gradient(0deg, color-mix(in srgb, var(--surface) 92%, transparent) 0, transparent 24%),
-  linear-gradient(180deg, color-mix(in srgb, var(--surface) 60%, transparent) 0, transparent 12%); }}
-.brand {{ position: absolute; left: 80px; top: 72px; font: 400 18px "Plex Mono"; letter-spacing: .16em; text-transform: uppercase; color: var(--ink); opacity: .55; }}
-.stat {{ position: absolute; right: 80px; top: 64px; text-align: right; color: var(--ink); }}
-.stat .n {{ font: {f['style']} {f['weight']} {f['stat']}px/1 "Title"; }}
-.stat .k {{ font: 400 16px "Plex Mono"; letter-spacing: .14em; text-transform: uppercase; opacity: .55; margin-top: 10px; }}
-.title {{ position: absolute; left: 62px; bottom: 360px; transform-origin: left bottom; transform: rotate(-90deg) translateY(100%);
-  font: {f['style']} {f['weight']} 238px/0.8 "Title"; letter-spacing: {f['tracking']}px; white-space: nowrap; color: var(--ink); }}
+  linear-gradient(180deg, color-mix(in srgb, var(--surface) 80%, transparent) 0, transparent 14%); }}
+.trim {{ text-box: trim-both cap alphabetic; line-height: 1; }}
+.micro {{ font: 500 16px "Plex Mono"; letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--ink) 60%, transparent); white-space: nowrap; }}
+.brand {{ position: absolute; left: var(--m); top: var(--m); }}
+.stat {{ position: absolute; right: var(--m); top: var(--m); display: flex; flex-direction: column; align-items: flex-end; gap: 24px; }}
+.stat .n {{ font-family: "Title"; font-style: {f['style']}; font-weight: {f['weight']}; color: var(--ink); white-space: nowrap; }}
+.stat .k {{ color: var(--accent); }}
+.title {{ position: absolute; left: var(--m); writing-mode: sideways-lr; white-space: nowrap;
+  font: {f['style']} {f['weight']} 238px "Title"; letter-spacing: {f['tracking']}px; color: var(--ink); }}
 .title i {{ color: var(--accent); font-style: inherit; }}
-.foot {{ position: absolute; left: 80px; right: 80px; bottom: 96px; }}
-.desc {{ font: {caption}; margin-bottom: 26px; color: var(--ink); }}
-#track {{ position: relative; height: 10px; background: color-mix(in srgb, var(--ink) 22%, transparent); }}
-#fill {{ position: absolute; top: 0; bottom: 0; left: {start * 100:.4f}%; right: 0; min-width: 4px;
+.foot {{ position: absolute; left: var(--m); right: var(--m); bottom: var(--m); display: flex; flex-direction: column; }}
+.desc {{ font-family: {caption}; font-style: {caption_style}; font-weight: {caption_weight}; white-space: nowrap;
+  color: color-mix(in srgb, var(--ink) 84%, transparent); margin-bottom: 32px; }}
+#track {{ position: relative; height: 10px; background: color-mix(in srgb, var(--ink) 20%, transparent); }}
+#fill {{ position: absolute; top: 0; bottom: 0; left: {start * 100:.4f}%; right: 0; min-width: 10px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 25%, transparent), var(--accent)); }}
+.axis {{ display: flex; justify-content: space-between; margin-top: 20px; text-transform: none; }}  /* seconds are s */
 </style>
 <script>window.fit = () => {{
-  // The title takes the column's height at most: 1440px of a 2000px sheet.
-  const t = document.querySelector('.title'); let s = 238;
-  while (t.scrollWidth > 1440 && s > 100) {{ s -= 4; t.style.fontSize = s + 'px'; }}
-  // Display faces vary widely in width; keep the caption on one line.
-  const d = document.querySelector('.desc'); let ds = parseFloat(getComputedStyle(d).fontSize);
-  while (d.scrollWidth > d.clientWidth && ds > 20) {{ ds -= 1; d.style.fontSize = ds + 'px'; }}
+  const ratio = (font, text) => {{  // glyph height as a fraction of font size
+    const c = document.createElement('canvas').getContext('2d'); c.font = font.replace(/\\d+px/, '200px');
+    return c.measureText(text).actualBoundingBoxAscent / 200; }};
+  // Exposure figure: numerals 60 px tall in every face.
+  const n = document.querySelector('.stat .n'); const nf = getComputedStyle(n);
+  const nfont = `${{nf.fontStyle}} ${{nf.fontWeight}} 100px ${{nf.fontFamily}}`;
+  const ns = 60 / ratio(nfont, '0');
+  n.style.fontSize = ns.toFixed(1) + 'px';
+  // Trim aligns the font's cap height; lift the numerals by any difference so their tops sit on y=80.
+  n.style.transform = `translateY(${{((ratio(nfont, '0') - ratio(nfont, 'H')) * ns).toFixed(1)}}px)`;
+  // Caption: a 21 px x-height in every face, on one line.
+  const d = document.querySelector('.desc'); const df = getComputedStyle(d);
+  let ds = 21 / ratio(`${{df.fontStyle}} ${{df.fontWeight}} 100px ${{df.fontFamily}}`, 'x');
+  d.style.fontSize = ds + 'px';
+  while (d.scrollWidth > d.clientWidth && ds > 16) {{ ds -= 0.5; d.style.fontSize = ds + 'px'; }}
+  // Title: starts 72 px above the caption, ends 72 px below the brand line.
+  const t = document.querySelector('.title');
+  const top = document.querySelector('.brand').getBoundingClientRect().bottom + 72;
+  const start = d.getBoundingClientRect().top - 72;
+  t.style.bottom = (document.body.clientHeight - start) + 'px';
+  let s = 238;
+  while (t.getBoundingClientRect().height > start - top && s > 100) {{ s -= 2; t.style.fontSize = s + 'px'; }}
 }};</script>
 </head><body>
 <div id="art"></div><div class="scrim"></div>
-<div class="brand">Uno.Effects &nbsp;{p.number:02d}</div>
-<div class="stat"><div class="n">{stat}</div><div class="k">{label}</div></div>
-<div class="title">{p.title}<i>.</i></div>
-<div class="foot"><div class="desc" style="white-space:nowrap;overflow:hidden">{p.description}</div><div id="track"><div id="fill"></div></div></div>
+<div class="brand micro trim">Uno.Effects &middot; No. {p.number:02d} of 64</div>
+<div class="stat"><div class="n trim">{stat}</div><div class="k micro trim">{label}</div></div>
+<div class="title trim">{p.title}<i>.</i></div>
+<div class="foot"><div class="desc trim">{p.description}</div><div id="track"><div id="fill"></div></div>
+<div class="axis micro trim"><span>0.00 s</span><span>{run:.2f} s</span></div></div>
 </body></html>'''
 
 
