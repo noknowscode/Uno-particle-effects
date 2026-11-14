@@ -52,6 +52,7 @@ public partial class ParticleView : SKCanvasElement
 	private SKSurface? _surface;
 	private SKPaint? _blitPaint;
 	private SKPaint? _fadePaint;
+	private float _fadeCarry;
 	private SKFont? _diagnosticsFont;
 	private SKPaint? _diagnosticsPaint;
 
@@ -511,6 +512,7 @@ public partial class ParticleView : SKCanvasElement
 			}
 
 			_warmUpRemaining = Math.Max(0, WarmUpFrames);
+			_fadeCarry = 0f;
 
 			if (_warmUpRemaining == 0)
 			{
@@ -616,7 +618,7 @@ public partial class ParticleView : SKCanvasElement
 			return;
 		}
 
-		FadeSurface(canvas, width, height, effects[0].TrailFade);
+		FadeSurface(canvas, width, height, effects[0].TrailFade, delta * (float)effects[0].Speed);
 
 		var density = (float)EffectiveDensity;
 		var total = 0;
@@ -651,8 +653,14 @@ public partial class ParticleView : SKCanvasElement
 		_lastParticleCount = total;
 	}
 
-	private void FadeSurface(SKCanvas canvas, float width, float height, float fade)
+	private void FadeSurface(SKCanvas canvas, float width, float height, float fade, float deltaTime)
 	{
+		fade = FadeOverFrame(fade, deltaTime, ref _fadeCarry);
+		if (fade <= 0f)
+		{
+			return;
+		}
+
 		var background = SurfaceColor;
 
 		if (fade >= 1f)
@@ -676,6 +684,38 @@ public partial class ParticleView : SKCanvasElement
 		}
 
 		canvas.DrawRect(0, 0, width, height, paint);
+	}
+
+	/// <summary>
+	/// <see cref="ParticleEffect.TrailFade"/> is the fraction faded per 1/60 s.
+	/// Applied once per frame as-is, trails were 2.4 times longer at 30 fps than
+	/// at 144 fps. Fading by a rescaled fraction every frame fixes the length but
+	/// not the look: at 144 fps the per-frame alpha is so small that 8-bit
+	/// blending stops short of the background and leaves grey ghosts. So the
+	/// fade keeps a 60 Hz cadence instead, carrying the fraction between frames
+	/// like <c>SpawnThisFrame</c>: whole steps only, combined when a frame spans
+	/// several. At exactly 1/60 s it is one step a frame, as before.
+	/// </summary>
+	/// <returns>The fraction to fade this frame; 0 when no step is due.</returns>
+	private static float FadeOverFrame(float fade, float deltaTime, ref float carry)
+	{
+		if (fade >= 1f)
+		{
+			return 1f;
+		}
+
+		carry += deltaTime * 60f;
+
+		// The epsilon keeps 1/60 s, which is not exact in float, at one step.
+		var steps = (int)(carry + 0.0001f);
+		carry = MathF.Max(0f, carry - steps);
+
+		return steps switch
+		{
+			0 => 0f,
+			1 => fade,
+			_ => 1f - MathF.Pow(1f - fade, steps),
+		};
 	}
 
 	private SKSurface? EnsureSurface(float width, float height, float scale)

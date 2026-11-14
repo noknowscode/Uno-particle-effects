@@ -98,9 +98,21 @@ Two switches, both used by the tests and the docs embed:
 ## Testing
 
 `--render-tests` drives every effect at a fixed 1/60 s timestep onto a 256x256
-surface and hashes frames 0, 60 and 300, twice, comparing the runs. It also
-reports steady-state allocation per frame and median frame time, and writes the
-frames as PNGs.
+surface and hashes frames 0, 60 and 300, twice, comparing the runs. It writes the
+frames as PNGs and reports median frame time. Each effect must also pass two
+more checks, or the run fails:
+
+- **Frame rate.** The effect runs the same 5 seconds again at 1/144 s (and at
+  1/30 s), and the last frame's coverage (share of pixels visibly off the
+  surface) and intensity are compared with the 60 fps frame. 144 fps must land
+  within 25% of 60 fps. Pixels cannot match, since random numbers are drawn per
+  step, so statistics stand in for them. 30 fps is reported but not asserted:
+  there a trail is stamped once per two tuned steps and reads dimmer, which only
+  sub-stepping would close.
+- **Allocation budget.** Managed bytes allocated by `ParticleEffect.Render`
+  alone, per frame after the pools exist, against
+  `tests/Uno.Effects.RuntimeTests/AllocationBudgets.cs`. The budget is zero;
+  the seven exceptions each carry their reason.
 
 The harness lives in the app rather than beside it. That is deliberate: effects
 are `DependencyObject`s, so they need a running Uno app, and running the tests
@@ -112,13 +124,18 @@ Measured on Skia Desktop (Windows, CPU raster), 256x256, all 64 effects:
 
 | | median frame time | allocation per frame |
 |---|---|---|
-| 62 particle and CPU effects | 0.03 – 1.3 ms | 10 – 230 B |
-| Plasma (SKSL) | ~3 – 5 ms | ~0.4 KB |
-| Metaballs (SKSL) | ~5 – 18 ms | ~0.4 KB |
+| 57 particle and CPU effects | 0.03 – 1.3 ms | 0 B |
+| Sine path, Flock, Blob, Grain, Meteors | 0.03 – 0.8 ms | 88 – 208 B |
+| Plasma (SKSL) | ~3 – 5 ms | 319 B |
+| Metaballs (SKSL) | ~5 – 18 ms | 240 B |
 
-Allocation figures are from the October 2026 pass; frame times are from the
-original Windows measurement. The shader effects used to allocate ~10 KB a frame,
-almost all of it from re-reading their embedded `.sksl` resource on every draw.
+Allocation figures are from November 2026 on Skia Desktop (Linux), measured
+around `Render` alone; earlier figures of 10 – 230 B included the harness's own
+hashing and fade paint. The five non-zero CPU effects each create one SkiaSharp
+wrapper per frame (a detached `SKPath`, an `SKImage`, a gradient `SKShader`).
+Frame times are from the original Windows measurement. The shader effects used to
+allocate ~10 KB a frame, almost all of it from re-reading their embedded `.sksl`
+resource on every draw.
 
 CI (`.github/workflows/ci.yml`) builds both heads with warnings as errors and
 runs the render tests on Skia Desktop under Xvfb on every pull request.
@@ -169,6 +186,16 @@ were tuned per 1/60 s step. `TunedSteps`, `PerTunedStep` and `SpawnThisFrame`
 rescale them to the real frame time, so an effect looks the same at 120 fps or at
 `Speed="0.25"` as at 60 fps. At exactly 1/60 s they reduce to the constants, so
 the fixed-timestep hashes did not move.
+
+**Trails fade on a 60 Hz cadence.** `TrailFade` is the fraction faded per 1/60 s.
+Applied once per frame, trails were 2.4 times longer at 30 fps than at 144 fps.
+Rescaling the alpha every frame fixed the length but, at 144 fps, left the
+per-frame alpha so small that 8-bit blending stopped short of the background and
+left grey ghosts. `ParticleView` now carries the fraction between frames and
+fades by whole steps only, as `SpawnThisFrame` does for spawns. The frame-rate
+check in the render tests found this, and Starfield (streaks drawn from the
+previous frame's position), Ink (a random walk scaled by dt instead of √dt) and
+Arcs (rebuilt every frame) with it.
 
 Still open, and deliberately so: the board realizes all 64 tiles rather than
 virtualizing them, so every tile owns a surface whether or not it is scrolled

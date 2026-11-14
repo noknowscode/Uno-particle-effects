@@ -56,9 +56,13 @@ public sealed record StartupOptions(string? EffectId, bool RunRenderTests, strin
 
 		Console.WriteLine($"Render tests  {RenderTestRunner.Size}x{RenderTestRunner.Size}, fixed 1/60 s timestep, "
 			+ $"frames {string.Join(", ", RenderTestRunner.SampledFrames)}");
+		Console.WriteLine($"Frame rates   coverage and intensity at {RenderTestRunner.ComparedSeconds:0} s, "
+			+ $"144 fps within {RenderTestRunner.RelativeTolerance:P0} of 60 fps; 30 fps reported only");
 		Console.WriteLine($"Frames written to {directory}");
 		Console.WriteLine();
-		Console.WriteLine($"{"effect",-12} {"result",-8} {"alloc/frame",12} {"median ms",10}  frame hashes");
+		Console.WriteLine(
+			$"{"effect",-13} {"result",-6} {"alloc/frame",11} {"budget",7} {"median ms",9}  "
+			+ $"{"coverage 30/60/144",-20} {"intensity 30/60/144",-20} frame hashes");
 
 		var passed = true;
 
@@ -68,19 +72,26 @@ public sealed record StartupOptions(string? EffectId, bool RunRenderTests, strin
 
 			var verdict = result.Error is not null ? "ERROR"
 				: !result.DrewSomething ? "BLANK"
-				: result.Deterministic ? "ok"
-				: "NONDET";
+				: !result.Deterministic ? "NONDET"
+				: !result.FrameRateIndependent ? "FPS"
+				: !result.WithinBudget ? "ALLOC"
+				: "ok";
 
 			var hashes = result.Error ?? string.Join("  ", result.Frames.Select(f => $"{f.Frame}:{f.Hash}"));
 
 			Console.WriteLine(
-				$"{result.Effect,-12} {verdict,-8} {result.BytesPerFrame,10} B {result.MedianFrameMilliseconds,9:0.000}  {hashes}");
+				$"{result.Effect,-13} {verdict,-6} {result.BytesPerFrame,9} B {result.AllocationBudget,5} B "
+				+ $"{result.MedianFrameMilliseconds,9:0.000}  "
+				+ $"{Triple(result.At30?.Coverage, result.At60?.Coverage, result.At144?.Coverage),-20} "
+				+ $"{Triple(result.At30?.Intensity, result.At60?.Intensity, result.At144?.Intensity),-20} {hashes}");
 		}
 
 		Console.WriteLine();
 		Console.WriteLine(passed
-			? "All effects are deterministic. Compare these hashes across heads to prove render consistency."
-			: "FAILED: an effect either did not reproduce its own frames or drew nothing at all.");
+			? "All effects are deterministic, frame-rate independent and within their allocation budgets. "
+				+ "Compare these hashes across heads to prove render consistency."
+			: "FAILED: an effect did not reproduce its own frames (NONDET), drew nothing (BLANK), "
+				+ "looked different at 144 fps (FPS) or allocated past its budget (ALLOC).");
 
 		Console.WriteLine();
 		passed &= CheckPaletteOverride();
@@ -104,14 +115,14 @@ public sealed record StartupOptions(string? EffectId, bool RunRenderTests, strin
 	{
 		var entry = EffectCatalog.Find("snow") ?? EffectCatalog.Entries[0];
 
-		var standard = RenderTestRunner.Run($"{entry.Name} default palette", entry.Create);
+		var standard = RenderTestRunner.Run($"{entry.Name} default palette", entry.Create, checkFrameRates: false);
 		var themed = RenderTestRunner.Run($"{entry.Name} dark ink palette", () =>
 		{
 			var effect = entry.Create();
 			effect.Palette.Add(new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0x2A, 0x2A, 0x28)));
 			effect.Palette.Add(new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xA8, 0x72, 0x38)));
 			return effect;
-		});
+		}, checkFrameRates: false);
 
 		var changed = standard.Frames.Count == themed.Frames.Count
 			&& standard.Frames.Count > 0
@@ -150,6 +161,8 @@ public sealed record StartupOptions(string? EffectId, bool RunRenderTests, strin
 
 		static EffectFrame Frame(float density) => new(256, 256, 0f, 0f, 128f, 128f, false, density);
 	}
+
+	private static string Triple(double? a, double? b, double? c) => $"{a:0.000}/{b:0.000}/{c:0.000}";
 
 	/// <summary>What the tier resolved to here, read through a throwaway view.</summary>
 	private static double DeviceTierProbe() => new Particles.ParticleView().EffectiveDensity;

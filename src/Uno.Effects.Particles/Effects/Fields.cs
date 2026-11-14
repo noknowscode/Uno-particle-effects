@@ -848,12 +848,19 @@ public sealed partial class Ink : ParticleEffect
 
 	protected override void Step(in EffectFrame frame)
 	{
+		// A random walk spreads with the square root of time. One random step a
+		// frame scaled by the frame time spread less the faster the frame rate;
+		// dividing by the square root of the tuned steps it stands for keeps the
+		// spread per second the same. At exactly 1/60 s the correction is 1, and
+		// it is applied last so those frames stay bit-identical.
+		var correction = 1f / MathF.Sqrt(TunedSteps(in frame));
+
 		for (var i = 0; i < _walkers.Length; i++)
 		{
 			ref var walker = ref _walkers[i];
 
-			walker.X += (Random.NextSingle() - 0.5f) * 220f * frame.DeltaTime;
-			walker.Y += (Random.NextSingle() - 0.5f) * 220f * frame.DeltaTime;
+			walker.X += (Random.NextSingle() - 0.5f) * 220f * frame.DeltaTime * correction;
+			walker.Y += (Random.NextSingle() - 0.5f) * 220f * frame.DeltaTime * correction;
 			walker.Life += frame.DeltaTime * 0.3f;
 
 			if (walker.Life > 1f)

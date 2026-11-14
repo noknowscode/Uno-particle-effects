@@ -1137,10 +1137,21 @@ public sealed partial class Arcs : ParticleEffect
 
 	protected override void Emit(in EffectFrame frame) => Rebuild(in frame);
 
-	protected override void Step(in EffectFrame frame) => Rebuild(in frame);
+	/// <summary>
+	/// Rebuilds once per tuned step, not once per frame. Every frame stacked
+	/// 2.4 times more arcs into the trail at 144 fps than at 60, and ignored
+	/// <see cref="ParticleEffect.Speed"/>; at exactly 1/60 s it is still every frame.
+	/// </summary>
+	protected override void Step(in EffectFrame frame)
+	{
+		if (SpawnThisFrame(1f, in frame) > 0)
+		{
+			Rebuild(in frame);
+		}
+	}
 
 	/// <summary>
-	/// The arcs are redrawn from scratch every frame; that churn is the effect.
+	/// The arcs are redrawn from scratch at the tuned rate; that churn is the effect.
 	/// Building them in Step rather than in Draw keeps drawing free of state.
 	/// </summary>
 	private void Rebuild(in EffectFrame frame)

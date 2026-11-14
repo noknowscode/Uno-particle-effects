@@ -169,3 +169,50 @@ applies to the *view*. §5 should say which of the two it means.
 
 All 64 render hashes are unchanged, and this machine (16 cores, desktop)
 resolves to 1.00x, so nothing on the board moved.
+
+## Frame-rate independence and allocation budgets
+
+Idea borrowed from MonacoLabs.Presto's particle tests (ideas only, no code):
+run the same simulation at different step sizes and assert the same result, and
+fail on allocation instead of reporting it.
+
+**How it is measured.** Different frame rates cannot produce the same pixels,
+because random numbers are drawn per step. So the suite compares statistics of
+the frame at t = 5 s: coverage (share of pixels more than 24 summed RGB levels
+off the surface) and mean intensity. Calibrated on all 64 effects before any
+fix, the time-driven effects (shaders, grids, projections) matched to three
+decimals; every effect that drifted was a trail effect, plus Starfield.
+
+**What it found.**
+
+- `ParticleView.FadeSurface` faded by `TrailFade` once per frame, so trail
+  length depended on the frame rate: coverage for Vortex was 0.096 / 0.063 /
+  0.036 at 30 / 60 / 144 fps. Scaling the alpha by the frame time fixed 30 fps
+  and broke 144 fps the other way: the per-frame alpha got so small that 8-bit
+  SrcOver stopped short of the background (coverage 0.68 at 144 fps, grey
+  ghosts). The fix keeps a 60 Hz cadence: the fraction carries between frames
+  and the fade applies whole steps only. Vortex is now 0.055 / 0.063 / 0.069.
+- Starfield drew each streak from the previous frame's depth, so streaks were
+  2.4 times longer at 60 fps than at 144 fps. It now draws one tuned step of
+  travel.
+- Ink's random walk scaled by dt; diffusion scales by √dt. Arcs rebuilt every
+  frame, stacking 2.4 times more arcs into its trail at 144 fps. Both were
+  already in the review findings, and they were the only two effects outside
+  25% at 144 fps once the fade was fixed.
+
+**What it does not assert.** 30 fps is printed, not checked. Below 60 fps a
+particle is stamped once per two fade steps, so trails are dotted and dimmer
+(intensity down by up to half). That is sampling, not a fade bug; sub-stepping
+would close it.
+
+**Allocation.** The old figure counted the harness's own hashing, PNG writes
+and per-frame fade paint, which is why nearly every effect showed ~11 B a frame.
+Measured around `Render` alone, 57 effects allocate nothing; the seven that do
+each create one SkiaSharp wrapper a frame and are listed with their reasons in
+`AllocationBudgets.cs`.
+
+**A small surprise worth knowing:** fading a freshly cleared surface towards
+its own colour is not a no-op in 8-bit; a few pixels shift by one level. Frame 0
+no longer fades (no time has passed), which moved the frame-0 hash of every
+trail effect.
+
