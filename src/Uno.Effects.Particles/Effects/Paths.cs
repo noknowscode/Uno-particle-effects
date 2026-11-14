@@ -24,8 +24,10 @@ public sealed partial class Starfield : ParticleEffect
 		public float X;
 		public float Y;
 		public float Z;
-		public float PreviousZ;
 	}
+
+	/// <summary>How fast a star closes in, in depth units per second.</summary>
+	private const float ApproachPerSecond = 0.5f;
 
 	private Star[] _stars = [];
 
@@ -37,13 +39,11 @@ public sealed partial class Starfield : ParticleEffect
 
 		for (var i = 0; i < _stars.Length; i++)
 		{
-			var z = Random.NextSingle();
 			_stars[i] = new Star
 			{
 				X = (Random.NextSingle() - 0.5f) * 2f,
 				Y = (Random.NextSingle() - 0.5f) * 2f,
-				Z = z,
-				PreviousZ = z,
+				Z = Random.NextSingle(),
 			};
 		}
 	}
@@ -54,13 +54,11 @@ public sealed partial class Starfield : ParticleEffect
 		{
 			ref var star = ref _stars[i];
 
-			star.PreviousZ = star.Z;
-			star.Z -= frame.DeltaTime * 0.5f;
+			star.Z -= frame.DeltaTime * ApproachPerSecond;
 
 			if (star.Z <= 0.02f)
 			{
 				star.Z = 1f;
-				star.PreviousZ = 1f;
 				star.X = (Random.NextSingle() - 0.5f) * 2f;
 				star.Y = (Random.NextSingle() - 0.5f) * 2f;
 			}
@@ -73,12 +71,17 @@ public sealed partial class Starfield : ParticleEffect
 		var centerY = frame.Height / 2f;
 		var size = ResolveSize();
 
+		// A streak covers one tuned step of travel. Drawn from the previous
+		// frame's position it was 2.4 times longer at 60 fps than at 144 fps.
+		var streak = ApproachPerSecond / TunedStepsPerSecond * (float)Speed;
+
 		foreach (var star in _stars)
 		{
+			var tailZ = MathF.Min(star.Z + streak, 1f);
 			var x1 = centerX + (star.X / star.Z * centerX * 0.5f);
 			var y1 = centerY + (star.Y / star.Z * centerY * 0.5f);
-			var x0 = centerX + (star.X / star.PreviousZ * centerX * 0.5f);
-			var y0 = centerY + (star.Y / star.PreviousZ * centerY * 0.5f);
+			var x0 = centerX + (star.X / tailZ * centerX * 0.5f);
+			var y0 = centerY + (star.Y / tailZ * centerY * 0.5f);
 
 			var width = (((1f - star.Z) * 2f) + 0.3f) * size;
 			Line(canvas, x0, y0, x1, y1, Primary, (1f - star.Z) * 0.85f, width);
