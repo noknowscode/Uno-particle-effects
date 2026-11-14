@@ -1,3 +1,5 @@
+> **Moved to uno-lab.** This project now lives in the `Uno-particle-effects/` folder of [noknowscode/uno-lab](https://github.com/noknowscode/uno-lab/tree/main/Uno-particle-effects) (private). This repository is archived and kept for its history.
+
 # Uno.Effects
 
 Particle and shader effects for Uno Platform, drawn with SkiaSharp through a
