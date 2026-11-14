@@ -1,5 +1,5 @@
 # HANDOFF — Uno.Effects (particles library + gallery)
-Updated: 2026-11-13
+Updated: 2026-11-14
 
 ## Where we are
 
@@ -42,6 +42,14 @@ Re-verified 2026-11-13 in a Linux cloud session, after the move from Uno.Sdk
   (Halftone) differs by more than 32 levels in a channel: anti-aliasing at
   shape edges, no visible change. Hashes from before November are no baseline
   for cross-head comparison any more.
+- **Frame-rate and allocation checks (2026-11-14):** `--render-tests` now also
+  fails an effect that looks different at 144 fps than at 60 fps, or that
+  allocates past its budget in `AllocationBudgets.cs`. All 64 pass after fixing
+  the trail fade cadence in `ParticleView`, Starfield, Ink and Arcs. Hashes
+  moved for Starfield, for frame 0 of the nine trail effects, and for every
+  frame of Trail and Dipole: frame 0 no longer fades a blank surface. No
+  baselines were committed, so nothing downstream depends on the old values.
+  The suite takes ~150 s on Linux, up from ~60 s.
 - **CI:** `.github/workflows/ci.yml` builds both heads, runs the render tests
   under Xvfb, packs the NuGet. Validated step by step locally; its first run on
   GitHub is still to come.
@@ -80,8 +88,9 @@ Re-verified 2026-11-13 in a Linux cloud session, after the move from Uno.Sdk
    - Nebula draws one cloud in four in the primary ink (`(i % 4) + 1` wraps).
    - Frame 0 is wrong for Trail (head at 0,0) and Grain (solid black). Only
      visible with `WarmUpFrames="0"`; fixing it moves those two hashes.
-   - Arcs, Grain and Static re-randomise every frame whatever `Speed` is; Ink's
-     random walk scales by dt where it should scale by its square root.
+   - Grain and Static re-randomise every frame whatever `Speed` is (Arcs and
+     Ink are fixed). The frame-rate check does not see it: full-frame noise has
+     the same statistics at any rate.
    - `ReducedMotion` is read once per process, so changing the OS setting needs
      a restart.
 
@@ -102,6 +111,11 @@ already in place.
 - **Determinism depends on the fixed timestep, not only the seed** — Fireflies
   and Flow field draw random numbers during `Step`. Worth stating plainly in §5,
   since it is what makes the cross-head hash comparison meaningful.
+- **Trails read dimmer at 30 fps.** The render tests assert 144 fps against
+  60 fps but only report 30 fps: below 60 fps a particle is stamped once per two
+  fade steps, so a trail is dotted and its intensity drops by up to half.
+  Sub-stepping (several `Step`/`Draw` passes per slow frame) would close it, at a
+  cost on exactly the devices that are already slow.
 - **Windows head** (recommendation's own open decision): `SKCanvasElement` needs
   the Skia renderer, so WinAppSDK parity is unresolved. Item 4 answers it.
 - **Board virtualization**: all 64 tiles are realized, ~28 MB of surfaces. The
